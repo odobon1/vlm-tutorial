@@ -35,23 +35,11 @@ The recommended user setup is to have this document and the jupyter notebook ope
 
 It is recommended to complete the setup steps above, run the notebook, and then proceed to read through the remainder of this tutorial as the notebook is running (it takes about an hour to run (need final time reading for this)).
 
-## Section 1
 
-writing writing writing
 
-## Section 2
 
-more writing
-
-look at this figure:
 
 ![](images/example.png)
-
-aaaand some more writing
-
-
-
-
 
 
 
@@ -90,16 +78,18 @@ Interested readers can learn more about some of the more prominent open-source p
 
 ### VLM Configurations
 
-| Model                   | Num Parameters | Embedding Dimension |
-|-------------------------|----------------|---------------------|
-| CLIP ResNet-50 (224px)  | x              | yo                  |
-| CLIP ViT-B/32 (224px)   | x              | yo                  |
-| CLIP ViT-B/16 (224px)   | x              | yo                  |
-| CLIP ViT-L/14 (224px)   | x              | yo                  |
-| CLIP ViT-L/14 (336px)   | x              | yo                  |
-| SigLIP ViT-B/16 (224px) | x              | yo                  |
-| SigLIP ViT-B/16 (256px) | x              | yo                  |
-| SigLIP ViT-L/16 (256px) | x              | yo                  |
+VLM specs:
+
+| Model                   | Total Parameters | Embedding Dimension |
+|-------------------------|------------------|---------------------|
+| CLIP ResNet-50 (224px)  | 102M             | 1024                |
+| CLIP ViT-B/32 (224px)   | 151M             | 512                 |
+| CLIP ViT-B/16 (224px)   | 150M             | 512                 |
+| CLIP ViT-L/14 (224px)   | 428M             | 768                 |
+| CLIP ViT-L/14 (336px)   | 428M             | 768                 |
+| SigLIP ViT-B/16 (224px) | 203M             | 768                 |
+| SigLIP ViT-B/16 (256px) | 203M             | 768                 |
+| SigLIP ViT-L/16 (256px) | 652M             | 1024                |
 
 
 
@@ -116,3 +106,23 @@ Interested readers can learn more about some of the more prominent open-source p
 ### CLIP 80 Templates
 
 ...as described in the [OpenAI notebook](https://colab.research.google.com/github/openai/CLIP/blob/main/notebooks/Prompt_Engineering_for_ImageNet.ipynb).
+
+
+### Conclusion
+
+| Model                   | Reported ~ CLIP | Reported ~ SigLIP | Results ~ CLIP 80 | Results ~ Standard | Results ~ Raw |
+|-------------------------|-----------------|-------------------|-------------------|--------------------|---------------|
+| CLIP ResNet-50 (224px)  | 59.6            | --                | 59.8              | 57.9               | 55.3          |
+| CLIP ViT-B/32 (224px)   | 63.2            | --                | 63.3              | 61.9               | 59.0          |
+| CLIP ViT-B/16 (224px)   | 68.6            | 68.3              | 68.3              | 66.6               | 64.1          |
+| CLIP ViT-L/14 (224px)   | 75.3            | 75.5              | 75.5              | 72.9               | 71.6          |
+| CLIP ViT-L/14 (336px)   | 76.2            | 76.6              | 76.5              | 74.3               | 73.0          |
+| SigLIP ViT-B/16 (224px) | --              | 76.3              | 76.1              | 75.7               | 74.8          |
+| SigLIP ViT-B/16 (256px) | --              | 76.6              | 76.5              | 76.3               | 75.2          |
+| SigLIP ViT-L/16 (256px) | --              | 80.6              | 80.5              | 79.7               | 78.9          |
+
+Reported ~ CLIP: reported values from Table 11 of the seminal CLIP paper [x].
+Reported ~ SigLIP: reported values from Table 3 of the seminal SigLIP paper [x].
+Results ~ CLIP 80: results obtained using CLIP 80 Templates
+Results ~ Standard: results obtained using standard template
+Results ~ Raw: results obtained using raw label template

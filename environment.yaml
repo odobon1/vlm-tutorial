@@ -1,0 +1,17 @@
+name: imagenet-zeroshot
+channels:
+- pytorch
+- nvidia
+- conda-forge
+- defaults
+dependencies:
+- python=3.10
+- pytorch=2.4.*
+- torchvision=0.19.*
+- pytorch-cuda=12.1
+- numpy>=1.24
+- pillow>=10
+- tqdm
+- ipykernel
+- open-clip-torch>=2.24
+- pip

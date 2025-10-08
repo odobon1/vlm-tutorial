@@ -2,7 +2,7 @@
 
 This tutorial assumes a general knowledge of deep learning and familiarity with PyTorch
 
-Setup:
+## Setup
 1. Pull repo via `git clone xyz`
 2. etc
 3. Install env
@@ -39,21 +39,36 @@ It is recommended to complete the setup steps above, run the notebook, and then 
 
 
 
-![](images/example.png)
 
 
 
 
 
 
+### Imports
+
+![](images/1_imports.png)
 
 
-If one reads through some of the templates, they may seem odd when applied to the majority of images in ImageNet1k e.g. "a tattoo of a {}"(verify) is one of the templates.. Most of the images in ImageNet1k are certainly not tattoos so this is an odd template. However, EXPLANATION ABOUT WHY ENSEMBLING WORKS (produces more well-rounded text representations of class conept)
+
+### Config
 
 
 
 
-### ResNet-50
+### Batched Inference: ResNet-50
+
+
+### Batched Inference: VLM
+
+### Evaluation Loop
+
+
+
+
+
+
+### ResNet-50 -- maybe need better name for this
 
 First we benchmark ResNet-50 on the ImageNet1k validation set.
 
@@ -95,7 +110,7 @@ VLM specs:
 
 
 
-### Template Ensembles
+### Template Ensembling
 
 
 
@@ -103,14 +118,19 @@ VLM specs:
 
 ### Standard Template
 
-### CLIP 80 Templates
+### OpenAI ImageNet1k Templates
+
+If one reads through some of the templates, they may seem odd when applied to the majority of images in ImageNet1k e.g. "a tattoo of a {}"(verify) is one of the templates.. Most of the images in ImageNet1k are certainly not tattoos so this is an odd template. However, EXPLANATION ABOUT WHY ENSEMBLING WORKS (produces more well-rounded text representations of class conept)
 
 ...as described in the [OpenAI notebook](https://colab.research.google.com/github/openai/CLIP/blob/main/notebooks/Prompt_Engineering_for_ImageNet.ipynb).
 
 
-### Conclusion
 
-| Model                   | Reported ~ CLIP | Reported ~ SigLIP | Results ~ CLIP 80 | Results ~ Standard | Results ~ Raw |
+
+
+## Conclusion
+
+<!-- | Model                   | Reported ~ CLIP | Reported ~ SigLIP | Results ~ CLIP 80 | Results ~ Standard | Results ~ Raw |
 |-------------------------|-----------------|-------------------|-------------------|--------------------|---------------|
 | CLIP ResNet-50 (224px)  | 59.6            | --                | 59.8              | 57.9               | 55.3          |
 | CLIP ViT-B/32 (224px)   | 63.2            | --                | 63.3              | 61.9               | 59.0          |
@@ -119,10 +139,25 @@ VLM specs:
 | CLIP ViT-L/14 (336px)   | 76.2            | 76.6              | 76.5              | 74.3               | 73.0          |
 | SigLIP ViT-B/16 (224px) | --              | 76.3              | 76.1              | 75.7               | 74.8          |
 | SigLIP ViT-B/16 (256px) | --              | 76.6              | 76.5              | 76.3               | 75.2          |
-| SigLIP ViT-L/16 (256px) | --              | 80.6              | 80.5              | 79.7               | 78.9          |
+| SigLIP ViT-L/16 (256px) | --              | 80.6              | 80.5              | 79.7               | 78.9          | 
 
 Reported ~ CLIP: reported values from Table 11 of the seminal CLIP paper [x].
 Reported ~ SigLIP: reported values from Table 3 of the seminal SigLIP paper [x].
 Results ~ CLIP 80: results obtained using CLIP 80 Templates
 Results ~ Standard: results obtained using standard template
-Results ~ Raw: results obtained using raw label template
+Results ~ Raw: results obtained using raw label template -->
+
+| Model                   | Reported ~ CLIP | Reported ~ SigLIP | Reproduced |
+|-------------------------|-----------------|-------------------|------------|
+| CLIP ResNet-50 (224px)  | 59.6            | --                | 59.8       |
+| CLIP ViT-B/32 (224px)   | 63.2            | --                | 63.3       |
+| CLIP ViT-B/16 (224px)   | 68.6            | 68.3              | 68.3       |
+| CLIP ViT-L/14 (224px)   | 75.3            | 75.5              | 75.5       |
+| CLIP ViT-L/14 (336px)   | 76.2            | 76.6              | 76.5       |
+| SigLIP ViT-B/16 (224px) | --              | 76.3              | 76.1       |
+| SigLIP ViT-B/16 (256px) | --              | 76.6              | 76.5       |
+| SigLIP ViT-L/16 (256px) | --              | 80.6              | 80.5       |
+
+Reported ~ CLIP: reported values from Table 11 of the seminal CLIP paper [x].
+Reported ~ SigLIP: reported values from Table 3 of the seminal SigLIP paper [x].
+Reproduced: results obtained using OpenAI ImageNet1k Templates

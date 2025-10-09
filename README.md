@@ -43,7 +43,7 @@ It is recommended to complete the setup steps above, run the notebook, and then 
 
 
 
-
+## Evaluation Utilities
 
 ### Imports
 
@@ -51,13 +51,14 @@ It is recommended to complete the setup steps above, run the notebook, and then 
 
 
 
-### Config
+### Hardware Config
 
 
 
 
 ### Batched Inference: ResNet-50
 
+A batch of images is run through ResNet-50 to produce logits. Business as usual.
 
 ### Batched Inference: VLM
 
@@ -68,11 +69,16 @@ It is recommended to complete the setup steps above, run the notebook, and then 
 
 
 
-### ResNet-50 -- maybe need better name for this
+
+
+## ResNet-50
 
 First we benchmark ResNet-50 on the ImageNet1k validation set.
 
-### Class Prototypes
+
+## VLMs
+
+### Zero-Shot Classifier
 
 
 ### List Pretrained Models
@@ -90,6 +96,13 @@ Interested readers can learn more about some of the more prominent open-source p
 
 
 
+### Flagship CLIP Config
+
+### Zero-Shot Classification: Raw Labels
+
+### Zero-Shot Classification: Standard Template
+
+### Template Prompt Ensembling
 
 ### VLM Configurations
 
@@ -107,18 +120,7 @@ VLM specs:
 | SigLIP ViT-L/16 (256px) | 652M             | 1024                |
 
 
-
-
-
-### Template Ensembling
-
-
-
-### Raw Label Template
-
-### Standard Template
-
-### OpenAI ImageNet1k Templates
+### Zero-Shot Classification: OpenAI ImageNet1k Templates
 
 If one reads through some of the templates, they may seem odd when applied to the majority of images in ImageNet1k e.g. "a tattoo of a {}"(verify) is one of the templates.. Most of the images in ImageNet1k are certainly not tattoos so this is an odd template. However, EXPLANATION ABOUT WHY ENSEMBLING WORKS (produces more well-rounded text representations of class conept)
 

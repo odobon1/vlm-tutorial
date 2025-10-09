@@ -47,24 +47,28 @@ It is recommended to complete the setup steps above, run the notebook, and then 
 
 ### Imports
 
-![](images/1_imports.png)
+![](images/code_Page_01.png)
 
 
 
 ### Hardware Config
 
-
+![](images/code_Page_02.png)
 
 
 ### Batched Inference: ResNet-50
 
 A batch of images is run through ResNet-50 to produce logits. Business as usual.
 
+![](images/code_Page_03.png)
+
 ### Batched Inference: VLM
+
+![](images/code_Page_04.png)
 
 ### Evaluation Loop
 
-
+![](images/code_Page_05.png)
 
 
 
@@ -75,15 +79,19 @@ A batch of images is run through ResNet-50 to produce logits. Business as usual.
 
 First we benchmark ResNet-50 on the ImageNet1k validation set.
 
+![](images/code_Page_06.png)
 
 ## VLMs
 
 ### Zero-Shot Classifier
 
+![](images/code_Page_07.png)
 
 ### List Pretrained Models
 
 `open_clip.list_pretrained()` can be executed to view pretrained VLMs available through `open_clip`. Running this function displays architectures along with the dataset it was pretrained on which is needed to initialize the VLM image preprocessor. Unfortunately, this function does not also display the recommended `quick_gelu` setting so that is something the reader will have to look up on their own per model, but in general, the CLIP architectures performed pretraining using QuickGeLU and all the others did not. Typically, models initialized with pretrained weights from OpenAI should use QuickGeLU and all others not, as we will soon see.
+
+![](images/code_Page_08.png)
 
 Interested readers can learn more about some of the more prominent open-source pretraining datasets at the following links:
 
@@ -98,29 +106,40 @@ Interested readers can learn more about some of the more prominent open-source p
 
 ### Flagship CLIP Config
 
+![](images/code_Page_09.png)
+
 ### Zero-Shot Classification: Raw Labels
+
+![](images/code_Page_10.png)
 
 ### Zero-Shot Classification: Standard Template
 
+![](images/code_Page_11.png)
+
 ### Template Prompt Ensembling
+
+![](images/code_Page_12.png)
 
 ### VLM Configurations
 
 VLM specs:
 
-| Model                   | Total Parameters | Embedding Dimension |
-|-------------------------|------------------|---------------------|
-| CLIP ResNet-50 (224px)  | 102M             | 1024                |
-| CLIP ViT-B/32 (224px)   | 151M             | 512                 |
-| CLIP ViT-B/16 (224px)   | 150M             | 512                 |
-| CLIP ViT-L/14 (224px)   | 428M             | 768                 |
-| CLIP ViT-L/14 (336px)   | 428M             | 768                 |
-| SigLIP ViT-B/16 (224px) | 203M             | 768                 |
-| SigLIP ViT-B/16 (256px) | 203M             | 768                 |
-| SigLIP ViT-L/16 (256px) | 652M             | 1024                |
+| Model                   | Total <br> Parameters | Embedding  <br>  Dimension |
+|-------------------------|-----------------------|----------------------------|
+| CLIP ResNet-50 (224px)  | 102M                  | 1024                       |
+| CLIP ViT-B/32 (224px)   | 151M                  | 512                        |
+| CLIP ViT-B/16 (224px)   | 150M                  | 512                        |
+| CLIP ViT-L/14 (224px)   | 428M                  | 768                        |
+| CLIP ViT-L/14 (336px)   | 428M                  | 768                        |
+| SigLIP ViT-B/16 (224px) | 203M                  | 768                        |
+| SigLIP ViT-B/16 (256px) | 203M                  | 768                        |
+| SigLIP ViT-L/16 (256px) | 652M                  | 1024                       |
 
+![](images/code_Page_13.png)
 
 ### Zero-Shot Classification: OpenAI ImageNet1k Templates
+
+![](images/code_Page_14.png)
 
 If one reads through some of the templates, they may seem odd when applied to the majority of images in ImageNet1k e.g. "a tattoo of a {}"(verify) is one of the templates.. Most of the images in ImageNet1k are certainly not tattoos so this is an odd template. However, EXPLANATION ABOUT WHY ENSEMBLING WORKS (produces more well-rounded text representations of class conept)
 

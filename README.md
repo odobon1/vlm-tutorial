@@ -1,6 +1,8 @@
 # From Pixels to Prompts: <br><small>A Crash Course on Zero-Shot Classification Using Vision-Language Models</small>
 
-This tutorial assumes a general knowledge of modern deep learning and familiarity with PyTorch.
+This document has been created by researchers in the [Human-Augmented Analytics Group (HAAG)](https://sites.gatech.edu/human-augmented-analytics-group/) for the benefit of the wider PACE community.
+
+This guide walks through performing zero-shot image classification using VLMs, benchmarking against the ImageNet1k dataset provided by the [PACE AI Makerspace](https://gatech.service-now.com/home?id=kb_article_view&sysparm_article=KB0043842).
 
 ## Setup
 
@@ -25,6 +27,8 @@ Note: This environment does not support Hopper/Blackwell GPUs (H100/H200/B100/B2
 Tip: Keep this document and the Jupyter notebook open side-by-side. Complete the setup above, kick off the notebook, then read through the tutorial as the notebook runs.
 
 ## Intro
+
+This tutorial assumes a general knowledge of modern deep learning and familiarity with PyTorch.
 
 #### Hook
 
@@ -288,7 +292,7 @@ OpenAI's CLIP [Prompt Engineering for ImageNet](https://colab.research.google.co
 
 `feat_eng.py` contains the 1000 curated class labels and 80 prompt templates from the OpenAI notebook, needed for reproducing ImageNet results.
 
-The lead author of [1] reports that there is about an additional 1% to be eked out, but he got bored once the prompt templates were shaped enough to outperform the original ResNet-50.
+The lead author of [1] reports that there is about an additional 1% to be eked out from further engineering the prompt templates, but that he got bored once the templates were shaped up to the point that CLIP outperforms ResNet-50.
 
 This ablation reveals that the CLIP 80 ensemble method produces embeddings that are more similar in the mean to the validation images, which is no surprise considering that the prototype consists of the mean of the class-concept in a variety of contexts, whereas a single prompt embedding could bias the embedding more towards what is interpreted from the single prompt text embedding.
 

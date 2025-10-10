@@ -36,7 +36,7 @@ In this tutorial, we demystify that capability: we'll walk through synthesizing 
 
 VLMs are known for their robustness to distribution shift and remarkable zero-shot learning capabilities.
 
-At a high level, a VLM consists of an image encoder and a text encoder (colloquially, the vision and text towers), which are jointly pretrained with a contrastive loss on a large number of image-text pairs scraped from the web to produce a shared embedding space that groups/separates similar/dissimilar concepts. By leveraging natural language supervision, VLMs learn semantically rich representations that capture fine-grained relationships between images and text, unlocking reliable zero-shot transfer competitive with fully supervised baselines. In other words, given a new dataset, VLMs generalize to the never-before-seen classes without any additional training and outperform previously state-of-the-art (SOTA) fully supervised models trained specifically for that task. That's **zero-shot learning**: predicting classes the model was never trained on. Natural language class labels are processed by the text encoder to synthesize a task-specific classifier on the fly.
+At a high level, a VLM consists of an image encoder and a text encoder (colloquially, the vision and text towers), which are jointly pretrained with a contrastive loss on a large number of image-text pairs scraped from the web to produce a shared, multimodal embedding space that groups/separates similar/dissimilar concepts across vision and language. By leveraging natural language supervision, VLMs learn semantically rich representations that capture fine-grained relationships between images and text, unlocking reliable zero-shot transfer competitive with fully supervised baselines. In other words, given a new dataset, VLMs generalize to the never-before-seen classes without any additional training and outperform previously state-of-the-art (SOTA) fully supervised models trained specifically for that task. That's **zero-shot learning**: predicting classes the model was never trained on. Natural language class labels are processed by the text encoder to synthesize a task-specific classifier on the fly.
 
 VLMs consist of an image encoder and a text encoder. Their contrastive pretraining objective maximizes(minimizes) the cosine similarity between corresponding(non-corresponding) image-text pairs scraped from the web, producing a shared latent space that glues together vision and language modalities, capturing fine-grained relationships across images and text.
 
@@ -46,7 +46,7 @@ Vision Transformers (ViTs) are commonly used for the vision encoder, although th
 
 #### What we'll be doing in this tutorial
 
-In this tutorial, we will be covering the basics of applying VLMs to image classification tasks, guiding our discussion and comparison of classical and VLM paradigms with the reproduction of results from the seminal CLIP [1] and SigLIP [2] papers, with a particular focus on the headliner results from the CLIP paper abstract: CLIP zero-shot outperforming ResNet-50 on ImageNet1k, which ResNet-50 was specifically trained on. We will be following the convention used in the CLIP paper and use *CLIP* to refer to the ViT-L/14 (336px) variant unlessed otherwise specified.
+In this tutorial, we will be covering the basics of applying VLMs to image classification tasks, guiding our discussion and comparison of classic and VLM paradigms with the reproduction of results from the seminal CLIP [1] and SigLIP [2] papers, with a particular focus on the headliner results from the CLIP paper abstract: CLIP zero-shot outperforming ResNet-50 on ImageNet1k, which ResNet-50 was specifically trained on. We will be following the convention used in the CLIP paper and use *CLIP* to refer to the ViT-L/14 (336px) variant unlessed otherwise specified.
 
 In this tutorial, we will be doing xyz and setting up a basic evaluation pipeline to measure Top-1 Precision on the ImageNet1k validation set. The code is set up in such a way to highlight the similarities and differences between performing image classification with standard models vs. VLMs. To use VLMs for image classification, we leverage the VLM image-to-text capability.
 
@@ -56,7 +56,7 @@ In this tutorial we use a VLM for zero-shot classification, one of their most im
 
 We will be evaluating and comparing VLMs and ResNet-50 [3] on the ImageNet1k [4] validation set. Note that unlike ResNet, which was trained on ImageNet1k, the VLMs weren't exposed to the ImageNet1k train data nor trained to explicitly recognize the 1000 discrete classes. In other words, we will be evaluating the zero-shot performance of the VLMs, baselining against a previously SOTA model that was explicitly trained for the task to reproduce the results from the CLIP paper abstract.
 
-The original ResNet-50 scored 76.2% Prec@1 on ImageNet1k as per the [official code release docs](https://github.com/KaimingHe/deep-residual-networks) of the seminal ResNet paper [3].
+The original ResNet-50 scored 75.3% Prec@1 on ImageNet1k as per the [official code release docs](https://github.com/KaimingHe/deep-residual-networks) of the seminal ResNet paper [3].
 
 We will be utilizing the PACE community copy of the ImageNet1k validation set located at `/storage/ice1/shared/d-pace_community/makerspace-datasets/`.
 
@@ -107,66 +107,48 @@ Here we set mini-batch size, number of workers, and device. These are details we
 
 ## Evaluation Loop
 
-Note the evaluation loop is exactly the same for both paradigms except for how logits are computed.
-
-The `batch_prec1()` function takes a batch of logits and corresponding binary targets and computes mean Prec@1.
+The evaluation loop implemented below will be used to evaluate Prec@1 of ResNet-50 and VLMs on ImageNet1k. We iterate over mini-batches of images and corresponding targets. Images are processed by the model to produce logits, which are then scored against the targets. Average Prec@1 is displayed at the end. Note the evaluation loop is exactly the same for classic and VLM paradigms except for how logits are computed.
 
 ![](images/code_Page_03.png)
 
-
-Because we are only running the VLMs in inference mode, we don't need to run the logits through the activation layers (sigmoid/softmax) or apply the temperature scaling or bias in the case of SigLIP. That is,
-Training is off-scope for this tutorial so we will not discuss why temperature/bias exist (perhaps fine-tuning methods will be discussed in a future tutorial)
-
-We will not discuss why these exist in too much detail here, but in a nutshell:
-    • temperature is a learnable parameter that adjusts the sharpness of the contrastive learning objective
-    • For SigLIP, bias is a learnable parameter that is used as the name suggests and it exists to balance the positive/negative boundary. An interesting note is that one of the seminal SigLIP authors released notes recommending to initialize bias to -10 (sigmoid(-10) = 0) to reflect how the negatives vastly dominate the positives as a way of reducing shock to the system.
-
-However, applying activations + temperature scale + logit bias for SigLIP does not changing the ordering of logits by magnitude, and can thus be omitted from the inference pipeline as we have done here. 
-^ briefly mention the existence of temp + bias in the sections before and state they are needed. Provide a brief explanation here. Start with explaining that the activations aren't needed and then tie in the temp + bias.
+Because softmax (ResNet-50, CLIP) and sigmoid (SigLIP) activation functions are strictly monotonic (ordering is preserved), they need not be applied to the logits during inference.
 
 ## ResNet-50
 
+First, we will benchmark ResNet-50 on the ImageNet1k validation set.
+
+ResNet-50 comes weighing in at 25.6M parameters.
+
 ### Batched Inference: ResNet-50
 
-We will start by examining the difference between performing batched inference in the classical vs. VLM paradigms.
-The code is arranged in such a way to highlight the similarities and differences between classic and VLM paradigms. The only difference between the classical vs. VLM paradigms in inference is how logits are computed from the mini-batch of images.
-
-In the classic paradigm, models are structured in such a way that they directly output logits, and ResNet-50 is no exception.
-
-In the classic paradigm, shown below, a batch of images is simply run through ResNet-50 to produce logits. Business as usual.
+In the standard setup, the model already is a classifier. Given a mini-batch of images `imgs_b` of shape (B, C, H, W), ResNet-50 produces class logits of shape (B, L) in a single forward pass.
 
 ![](images/code_Page_04.png)
 
 ### ResNet-50 Evaluation
 
-First we benchmark ResNet-50 on the ImageNet1k validation set.
+We initialize ResNet-50 and it's validation preprocessor, build the data loader, and evaluate the model on ImageNet1k.
 
-ResNet-50 comes weighing in at 25.6M parameters.
-
-talk about activation functions not being necessary in ResNet function annotations
-...in other words, activations + logit conditioning (temp + bias) don't change the argsort of logits, so they don't need to be applied during inference.
-
-Note: we are using ResNet-50 v1 here. A better performing version of ResNet exists, but we will be using the original version as described in the seminal CLIP paper's abstract [1].
+Note: we are using ResNet-50 v1 here. A better performing version of ResNet exists, but we will be using the original version (v1) that is referenced in the seminal CLIP paper's abstract [1].
 
 ![](images/code_Page_05.png)
 
+Prec@1 = 76.2%, not an exact match with the 75.3% reported in the seminal work, but close enough.
+
 ## VLMs
 
-First, we will use just the raw, OpenAI-curated ImageNet1k class labels. Then, we will be applying a generic template: "a photo of a {}".
-Finally, we will use the CLIP 80 templates described by the authors.
+In addition to the broad overview of performing zero-shot classification with VLMs, we will also cover prompt ensembling which is a method needed to reproduce the headliner results from the CLIP abstract. Along the way, we'll ablate different prompt templates and observe performance impact. First, we will use just the raw, OpenAI-curated ImageNet1k class labels (the template simply being the label itself). Then, we will be applying the standard template "a photo of a {}.". Finally, we will apply template ensembling using the OpenAI CLIP Templates described by the authors to (spoiler alert) obtain the desired results.
 
-When the VLM is utilized to perform image classification, a representation in the text space is produced for each class. This can be as simple as embedding a single prompt per class e.g. "a photo of a <label>", or methods that produce more robust text embeddings can be used to create better targets, as we will soon see.
-
-Prompt Ensembling adds some additional complexity so we will first first perform inference using a single template per class.
-
-We will use <flagship> model which produces xyz-dimensional embeddings, has xyz layers, x number of parameters, etc.
-
-First, class prototype embeddings are generated for each class (1000 embeddings in this case for ImageNet1k).
-Because ImageNet1k contains 1000 classes, this means we'll have 1000 text prototypes.
+For our initial leg of experimentation, we will only be evaluating the flagship CLIP ViT-L/14 (336px).
 
 ### Zero-Shot Classifier
 
-Before discussing performing batched inference with VLMs, we will cover the construction of the zero-shot classifier.
+Before discussing performing batched inference with VLMs, we will cover the construction of the prototype matrix i.e. zero-shot classifier.
+
+It is pretty straightforward: the P texts are tokenized, encoded, and normalized to unit-length to produce our text embedding matrix of shape (P, D).
+
+In the case of single templates being used, we will encode all of our class labels at once (P, the number of prompts being encoded, is our number of classes i.e. P = L). That is, the text embedding matrix produced by `encode_txts()` *is* our prototype matrix. In the case of template ensembling, we will encode multiple templates corresponding to one class at a time, in which case the text embedding matrix produced by `encode_txts()` corresponds to a single class (P != L). More on that later.
+
 
 ...an L x D matrix G where L is the number of classes (1000 in our case) and D is the embedding dimensionality.
 
@@ -213,9 +195,12 @@ wrt QuickGeLU: In most cases a warning will be printed if the QuickGeLU argument
 
 The CLIP authors describe polysemy issues with the default ImageNet1k labels e.g. "crane" (bird vs. machine), so they curate class labels (one per class) and a set of templates to create a robust set of class prototype text embeddings.
 
+Class prototype embeddings are generated for each class (1000 embeddings in this case for ImageNet1k). Because ImageNet1k has 1000 classes, we'll have 1000 text prototypes.
+
 ![](images/code_Page_10.png)
 
-Prec@1 = 73.0%.
+Prec@1 = 73.0% <br>
+This is somewhat close to our 76.3% target (ResNet-50), but there is still room for improvement.
 
 `img_pp` is the validation image preprocessor which applies transforms to images such that they are in the format expected by the vision encoder.
 ...(which apply) the same deterministic transformations used during pretraining:
@@ -226,9 +211,9 @@ Prec@1 = 73.0%.
 
 ### VLM Zero-Shot Evaluation: Standard Template
 
-Above, we used just the raw class label to construct the ZS classifier. An easy way to improve performance is through the use of prompt templating, a well-documented method known to lift performance in VLMs.
+An easy way to lift performance is to apply prompt templating, a well-documented method known to improve VLM performance.
 
-The code is much like before, but this time we ___
+The code is much like before, except this time we apply the template "a photo of a {}." to every class label before running through the text encoder to produce our zero-shot classifier.
 
 ![](images/code_Page_11.png)
 
@@ -236,7 +221,7 @@ The norm is to format text inputs with prompt templates such as "a photo of a {}
 
 It may seem strange that using a prompt such as "a photo of a {}." yields such a performance increase.
 
-Prec@1 = 74.9%, a noticeable improvement considering the simplicity of the changes. However, we have still not outperformed the ResNet-50 results. To do this, we will need to leverage the same technique used by the authors of the seminal CLIP: prompt ensembling.
+Prec@1 = 74.9%, a noticeable improvement over 73.0% considering the simplicity of the changes. However, we have still not outperformed the ResNet-50 results. To do this, we will need to leverage the same technique used by the authors of the seminal CLIP: prompt ensembling.
 
 ### Prompt Ensembling
 
@@ -351,7 +336,7 @@ ResNet-50/CLIP/SigLIP
 Reported/Reproduced
 
 
-In this tutorial, we explored the similarities between classical and VLM paradigms and explored how VLMs can be applied towards standard image classification. We performed an ablation of the CLIP 80 templates and of standalone ResNet vs. CLIP-ResNet vs. CLIP-ViT.
+In this tutorial, we explored the similarities between classic and VLM paradigms and explored how VLMs can be applied towards standard image classification. We performed an ablation of the CLIP 80 templates and of standalone ResNet vs. CLIP-ResNet vs. CLIP-ViT.
 
 VLMs such as those covered in this tutorial have a wide range of applications beyond image classification, including:
 * Image captioning

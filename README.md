@@ -105,9 +105,7 @@ Here we set mini-batch size, number of workers, and device. These are details we
 
 ![](images/code_Page_02.png)
 
-## Evaluation Engine
-
-### Evaluation Loop
+## Evaluation Loop
 
 Note the evaluation loop is exactly the same for both paradigms except for how logits are computed.
 
@@ -126,28 +124,20 @@ We will not discuss why these exist in too much detail here, but in a nutshell:
 However, applying activations + temperature scale + logit bias for SigLIP does not changing the ordering of logits by magnitude, and can thus be omitted from the inference pipeline as we have done here. 
 ^ briefly mention the existence of temp + bias in the sections before and state they are needed. Provide a brief explanation here. Start with explaining that the activations aren't needed and then tie in the temp + bias.
 
+## ResNet-50
+
 ### Batched Inference: ResNet-50
 
 We will start by examining the difference between performing batched inference in the classical vs. VLM paradigms.
 The code is arranged in such a way to highlight the similarities and differences between classic and VLM paradigms. The only difference between the classical vs. VLM paradigms in inference is how logits are computed from the mini-batch of images.
 
+In the classic paradigm, models are structured in such a way that they directly output logits, and ResNet-50 is no exception.
+
 In the classic paradigm, shown below, a batch of images is simply run through ResNet-50 to produce logits. Business as usual.
 
 ![](images/code_Page_03.png)
 
-### Batched Inference: VLM
-
-The first step to performing zero-shot image classification with a VLM is to build the zero-shot classifier: a matrix (L, D) of text embeddings which we will refer to as **class prototypes**, `protos_txt` in the code below. We will cover the construction of these class prototypes further along.
-
-Class prototype text embeddings are representations of classes across which similarity with image embeddings is compared. Need to establish this is a multimodal latent space we're talking about here by this point.
-
-Image embeddings corresponding to the mini-batch of images are produced with the image encoder. These image embeddings are then normalized to unit length and the cosine similarity computed between every pair of normalized image and text embeddings to produce the logits.
-
-![](images/code_Page_04.png)
-
-Brief explanation on intuition of cosine similarity here.
-
-## ResNet-50
+### ResNet-50 Evaluation
 
 First we benchmark ResNet-50 on the ImageNet1k validation set.
 
@@ -176,9 +166,23 @@ Because ImageNet1k contains 1000 classes, this means we'll have 1000 text protot
 
 ### Zero-Shot Classifier
 
+Before discussing performing batched inference with VLMs, we will cover the construction of the zero-shot classifier.
+
 ...an L x D matrix G where L is the number of classes (1000 in our case) and D is the embedding dimensionality.
 
 ![](images/code_Page_07.png)
+
+### Batched Inference: VLM
+
+The first step to performing zero-shot image classification with a VLM is to build the zero-shot classifier: a matrix (L, D) of text embeddings which we will refer to as **class prototypes**, `protos_txt` in the code below. We will cover the construction of these class prototypes further along.
+
+Class prototype text embeddings are representations of classes across which similarity with image embeddings is compared. Need to establish this is a multimodal latent space we're talking about here by this point.
+
+Image embeddings corresponding to the mini-batch of images are produced with the image encoder. These image embeddings are then normalized to unit length and the cosine similarity computed between every pair of normalized image and text embeddings to produce the logits.
+
+![](images/code_Page_04.png)
+
+Brief explanation on intuition of cosine similarity here.
 
 ### List Pretrained Models
 
@@ -205,11 +209,13 @@ wrt QuickGeLU: In most cases a warning will be printed if the QuickGeLU argument
 
 ![](images/code_Page_09.png)
 
-### Zero-Shot Classification: Raw Labels
+### VLM Zero-Shot Evaluation: Raw Labels
 
 The CLIP authors describe polysemy issues with the default ImageNet1k labels e.g. "crane" (bird vs. machine), so they curate class labels (one per class) and a set of templates to create a robust set of class prototype text embeddings.
 
 ![](images/code_Page_10.png)
+
+Prec@1 = 73.0%.
 
 `img_pp` is the validation image preprocessor which applies transforms to images such that they are in the format expected by the vision encoder.
 ...(which apply) the same deterministic transformations used during pretraining:
@@ -218,7 +224,7 @@ The CLIP authors describe polysemy issues with the default ImageNet1k labels e.g
 * Tensorify: convert to tensor
 * Normalize: normalizes values as per the model's expected mean/std
 
-### Zero-Shot Classification: Standard Template
+### VLM Zero-Shot Evaluation: Standard Template
 
 Above, we used just the raw class label to construct the ZS classifier. An easy way to improve performance is through the use of prompt templating, a well-documented method known to lift performance in VLMs.
 
@@ -226,11 +232,11 @@ The code is much like before, but this time we ___
 
 ![](images/code_Page_11.png)
 
-The performance is X. Wow! Amazing!
-
 The norm is to format text inputs with prompt templates such as "a photo of a {}". Although it may seem strange applying the same template to each class label, it is done to make the text more similar to the natural, caption-like sentences that the VLM was pretrained on, which improves zero-shot performance over just using the raw word.
 
-It may seem strange that using a prompt such as "a photo of a {}" would have such a performance increase
+It may seem strange that using a prompt such as "a photo of a {}." yields such a performance increase.
+
+Prec@1 = 74.9%, a noticeable improvement considering the simplicity of the changes. However, we have still not outperformed the ResNet-50 results. To do this, we will need to leverage the same technique used by the authors of the seminal CLIP: prompt ensembling.
 
 ### Prompt Ensembling
 
@@ -281,7 +287,7 @@ Potential columns to add to the above: pretrain dataset (nah), QuickGeLU (nah), 
 
 ![](images/code_Page_13.png)
 
-### Zero-Shot Classification: OpenAI ImageNet1k Templates
+### VLM Zero-Shot Evaluation: OpenAI ImageNet1k Templates
 
 The headliner CLIP results involve a method of feature engineering described in <link>
 

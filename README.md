@@ -9,22 +9,20 @@ Recommended resources:
 - RAM: x
 - etc.
 
-Note: The environment does not support the newer Hopper nor Blackwell GPU models (H100/H200/B100/B200)
-
-1. Pull repo via:<br>
+1. Pull repo:<br>
 `git clone https://github.com/odobon1/vlm-tutorial.git`
-2. Navigate to repo:<br>
+2. Navigate:<br>
 `cd vlm-tutorial`
 3. Create env:<br>
 `conda env create -f environment.yml`
 4. Activate env:<br>
 `conda activate imagenet-zeroshot`
 
+Note: This environment does not support Hopper/Blackwell GPUs (H100/H200/B100/B200).
+
 #### Setup stuff
 
-The recommended user setup is to have this document and the jupyter notebook open side by side.
-
-It is recommended to complete the setup steps above, run the notebook, and then proceed to read through the remainder of this tutorial as the notebook is running (it takes about an hour to run (need final time reading for this)).
+Tip: Keep this document and the Jupyter notebook open side-by-side. Complete the setup above, kick off the notebook, then read through the tutorial as the notebook runs.
 
 ## Intro
 
@@ -40,6 +38,8 @@ VLMs are known for their robustness to distribution shift and remarkable zero-sh
 
 At a high level, a VLM consists of an image encoder and a text encoder (colloquially, the vision and text towers), which are jointly pretrained with a contrastive loss on a large number of image-text pairs scraped from the web to produce a shared embedding space that groups/separates similar/dissimilar concepts. By leveraging natural language supervision, VLMs learn semantically rich representations that capture fine-grained relationships between images and text, unlocking reliable zero-shot transfer competitive with fully supervised baselines. In other words, given a new dataset, VLMs generalize to the never-before-seen classes without any additional training and outperform previously state-of-the-art (SOTA) fully supervised models trained specifically for that task. That's **zero-shot learning**: predicting classes the model was never trained on. Natural language class labels are processed by the text encoder to synthesize a task-specific classifier on the fly.
 
+VLMs consist of an image encoder and a text encoder. Their contrastive pretraining objective maximizes(minimizes) the cosine similarity between corresponding(non-corresponding) image-text pairs scraped from the web, producing a shared latent space that glues together vision and language modalities, capturing fine-grained relationships across images and text.
+
 Text transformers are used for the text encoder.
 
 Vision Transformers (ViTs) are commonly used for the vision encoder, although there are ResNet-based variants as well.
@@ -48,11 +48,15 @@ Vision Transformers (ViTs) are commonly used for the vision encoder, although th
 
 In this tutorial, we will be covering the basics of applying VLMs to image classification tasks, guiding our discussion and comparison of classical and VLM paradigms with the reproduction of results from the seminal CLIP [1] and SigLIP [2] papers, with a particular focus on the headliner results from the CLIP paper abstract: CLIP zero-shot outperforming ResNet-50 on ImageNet1k, which ResNet-50 was specifically trained on. We will be following the convention used in the CLIP paper and use *CLIP* to refer to the ViT-L/14 (336px) variant unlessed otherwise specified.
 
+In this tutorial, we will be doing xyz and setting up a basic evaluation pipeline to measure Top-1 Precision on the ImageNet1k validation set. The code is set up in such a way to highlight the similarities and differences between performing image classification with standard models vs. VLMs. To use VLMs for image classification, we leverage the VLM image-to-text capability.
+
 We will benchmark ResNet-50 and various VLMs of interest on the validation set of ImageNet1k.
 
 In this tutorial we use a VLM for zero-shot classification, one of their most impressive capabilities.
 
 We will be evaluating and comparing VLMs and ResNet-50 [3] on the ImageNet1k [4] validation set. Note that unlike ResNet, which was trained on ImageNet1k, the VLMs weren't exposed to the ImageNet1k train data nor trained to explicitly recognize the 1000 discrete classes. In other words, we will be evaluating the zero-shot performance of the VLMs, baselining against a previously SOTA model that was explicitly trained for the task to reproduce the results from the CLIP paper abstract.
+
+The original ResNet-50 scored 76.2% Prec@1 on ImageNet1k as per the [official code release docs](https://github.com/KaimingHe/deep-residual-networks) of the seminal ResNet paper [3].
 
 We will be utilizing the PACE community copy of the ImageNet1k validation set located at `/storage/ice1/shared/d-pace_community/makerspace-datasets/`.
 
@@ -79,7 +83,7 @@ Notice how the 3 overlapping results for the same models slightly vary between p
 
 Note: CLIP ResNet-50 shouldn't be confused with the standalone ResNet-50. "ResNet-50" will be used to refer to standalone ResNet-50 and "CLIP ResNet-50" will be used to refer to the VLM that uses ResNet-50 as the vision tower.
 
-We make use of the following conventions for discussing tensor dimensionality:
+We will use the following conventions for discussing tensor dimensionality:
 * B: Batch dimension i.e. sample dimension (number of samples per mini-batch)
 * D: Embedding dimension (dependent on VLM architecture)
 * T: Text encoder context length (max text tokens)
@@ -89,7 +93,7 @@ We make use of the following conventions for discussing tensor dimensionality:
 * H: Image height
 * W: Image width
 
-## Evaluation Utilities
+## Environment & Runtime Setup
 
 ### Imports
 
@@ -97,55 +101,11 @@ We make use of the following conventions for discussing tensor dimensionality:
 
 ### Hardware Config
 
+Here we set mini-batch size, number of workers, and device. These are details we can sweep aside, the parameters are set so the tutorial works right if the recommended setup is adhered to.
+
 ![](images/code_Page_02.png)
 
-
-### Batched Inference: ResNet-50
-
-The code is arranged in such a way to highlight the similarities and differences between classic and VLM paradigms.
-
-A batch of images is run through ResNet-50 to produce logits. Business as usual.
-
-![](images/code_Page_03.png)
-
-### Batched Inference: VLM
-
-OpenAI's CLIP was pretrained on a  set of 400M(?) image-text pairs scraped off the internet.
-During pretraining, B image-text pairs are sampled at a time and run through corresponding encoders to produce B text embeddings and B image embeddings. The logits are then computed to assemble a B x B similarity matrix. Along the diagonal (i = j) are the "aligned pairs" ~ the image-text pairs which were scraped from the web. All other elements are non-aligned pairs, where the image and text embeddings of non-corresponding pairs are compared. This is where the "contrastive" component of the name comes from: The majority of image-text pairs per batch are negatives ~ each B x B similarity matrix contains B positives and B^2 - B negatives under the standard pretraining assumption (that only aligned pairs are positives).
-VLMs are pretrained to push together aligned image-text pairs and push away non-aligned image-text pairs.
-
-A learnable temperature parameter is used to scale logits during training to adjust the sharpness of xyz, and in the case of SigLIP, a learnable bias applied to xyz.
-The raw logits are all we need for inference. During training, logits are scaled with a learnable temperature parameter to adjust the sharpness of xyz and in the case of SigLIP a learnable bias applied to xyz. However, like with softmax and sigmoid activations, these are strictly monotonic functions (ordering of logits is preserved) and are omitted to remain focused on inference for the purposes of this tutorial.
-(1) logits are scaled with a temperature parameter during training, which is applied during training to adjust the sharpness of xyz, but for inference it doesn't matter because applying the temperature scaling (and scalar logit bias in the case of SigLIP) doesn't change retrieval ranking i.e. in this case the sorted ordering of class logits (i.e. doesn't change ordering if logits were to be sorted)
-Similarly, 
-
-Cosine similarity is an operation that compares the similarity between pairs of vectors. Normalizing vectors to unit length can be thought of as casting them to the D-dimensional unit hypersphere with D-1 degrees of freedom. Cosine similarity can be thought of as a measurement for the degree to which two vectors are pointing in the same direction on the unit hypersphere. A score of 1 indicates they are pointing in exactly the same direction (identical embeddings). A score of 0 indicates orthogonality (perpendicular embeddings). A score of -1 indicates the vectors are pointing in opposite directions (one vector is the negative of the other).
-With both vectors normalized to unit length, cosine similarity is equivalent to taking the dot product.
-
-`protos_txt` are the zero-shot classifier, a matrix produced as part of getting the VLM behaving as an image classifier. We will cover the construction of this matrix later.
-...not too unlike the operations performed in a standard fully connected layer....
-
-`protos_txt` is a 2D matrix of shape (L, D) consisting of L number of D-dimensional text embeddings, one for each class. For each image embedding, the similarity is measured against all text embeddings and the pair with the highest similarity corresponds to the class prediction for an image.
-
-If you stop and take a second to think about what is being done here, the operation very much resembles the operation performed in a standard linear layer, the ultimate task-specific classification layer in this case. The x is analogous to the x, etc
-
-![](images/code_Page_04.png)
-
-in a way, the matrix of encoded text embeddings is essentially a matrix that encodes the meaning of each text prompt. Each row of matrix G is an embedding corresponding to a class descriptor prompt
-The matrix G acts as a function/operator on image query vector q_hat
-
-If you stop to think about it, what we did here very much resembles the operation performed by a fully connected linear layer, it is a dot product after all. The matrix G acts as an operator on the query embedding vector q_hat the very same way as the matrix of weights W of a fully connected layer acts as an operator on a vector of activations a_hat corresponding to a particular sample. The image embedding is analogous to the vector of activations entering the last task-specific fully connected classification layer, the matrix G of cached text embeddings encoding each class analogous to the last fully connected task-specific classification layer composed of weight matrix W with the individual text embeddings corresponding to particular classes analogous to the weights connecting every input activation to particular output logits. In both cases (VLM vs. classic), the class corresponding to the maximum logit is considered the prediction.
-
-the only difference is the pretraining process fuses together the latent space across modalities in such a way where the image embedding and corresponding text embedding of the natural language description of the image point in very similar directions.
-
-Pretraining fuses together the latent space between modalities
-
-Temp and bias:
-* SigLIP also adds a learnable scalar bias term to logits in addition to temperature-based scaling of logits
-
-
-During pre-training/fine-tuning, a temperature parameter is applied at this step, but applying it doesn't affect the ordering of retrieval results during inference so explanation of temp param is omitted here but just good to note. 
-
+## Evaluation Engine
 
 ### Evaluation Loop
 
@@ -166,7 +126,26 @@ We will not discuss why these exist in too much detail here, but in a nutshell:
 However, applying activations + temperature scale + logit bias for SigLIP does not changing the ordering of logits by magnitude, and can thus be omitted from the inference pipeline as we have done here. 
 ^ briefly mention the existence of temp + bias in the sections before and state they are needed. Provide a brief explanation here. Start with explaining that the activations aren't needed and then tie in the temp + bias.
 
+### Batched Inference: ResNet-50
 
+We will start by examining the difference between performing batched inference in the classical vs. VLM paradigms.
+The code is arranged in such a way to highlight the similarities and differences between classic and VLM paradigms. The only difference between the classical vs. VLM paradigms in inference is how logits are computed from the mini-batch of images.
+
+In the classic paradigm, shown below, a batch of images is simply run through ResNet-50 to produce logits. Business as usual.
+
+![](images/code_Page_03.png)
+
+### Batched Inference: VLM
+
+The first step to performing zero-shot image classification with a VLM is to build the zero-shot classifier: a matrix (L, D) of text embeddings which we will refer to as **class prototypes**, `protos_txt` in the code below. We will cover the construction of these class prototypes further along.
+
+Class prototype text embeddings are representations of classes across which similarity with image embeddings is compared. Need to establish this is a multimodal latent space we're talking about here by this point.
+
+Image embeddings corresponding to the mini-batch of images are produced with the image encoder. These image embeddings are then normalized to unit length and the cosine similarity computed between every pair of normalized image and text embeddings to produce the logits.
+
+![](images/code_Page_04.png)
+
+Brief explanation on intuition of cosine similarity here.
 
 ## ResNet-50
 
@@ -203,6 +182,8 @@ Because ImageNet1k contains 1000 classes, this means we'll have 1000 text protot
 
 ### List Pretrained Models
 
+returns a list of 2-element tuples where the first is a model identifier strings which specifies VLM architecture and the second element specifies pretraining dataset that the VLM was pretrained on.
+
 `open_clip.list_pretrained()` can be executed to view pretrained VLMs available through `open_clip`. Running this function displays architectures along with the dataset it was pretrained on which is needed to initialize the VLM image preprocessor. Unfortunately, this function does not also display the recommended `quick_gelu` setting so that is something the reader will have to look up on their own per model, but in general, the CLIP architectures performed pretraining using QuickGeLU and all the others did not. Typically, models initialized with pretrained weights from OpenAI should use QuickGeLU and all others not, as we will soon see.
 
 Explicityly mention: different pretraining datasets can be specified which will result in the corresponding set of weights getting pulled from sources such as Hugging Face Hub.
@@ -218,7 +199,7 @@ Interested readers can learn more about some of the more prominent open-source p
 
 `openai` tag --> original CLIP, load's OpenAI's original CLIP weights, these are not "OpenCLIP" models even though they're available through the `open_clip` library. Anything not tagged with `openai` belong to the OpenCLIP family e.g. `laion*`, `commonpool*`, etc, which are checkpoints trained by the community using the OpenCLIP recipes on public datasets.
 
-
+wrt QuickGeLU: In most cases a warning will be printed if the QuickGeLU argument conflicts with what was used during pretraining, but it is advised to look up what is appropriate for a given model.
 
 ### Flagship CLIP Config
 
@@ -391,5 +372,5 @@ VLMs perform retrieval, which is normally many-to-many. To get the VLMs behaving
 Reasoning about how training is performed for CLIP and SigLIP is left as an exercise to the reader (hint: <link>[1], ctrl-f "3.1.1 bidirectional training procedure")
 
 
-## Code Annotations Sneak-Peak
+## Code Annotations Sneak-Peek
 ![](images/code_Page_15.png)

@@ -3,11 +3,6 @@
 This tutorial assumes a general knowledge of modern deep learning and familiarity with PyTorch.
 
 ## Setup
-1. Pull repo via: `git clone https://github.com/odobon1/vlm-tutorial.git`
-2. `cd vlm-tutorial`
-3. Install env: `conda env create -f environment.yml`
-4. etc
-5. etc
 
 Recommended resources:
 - GPU: x
@@ -16,11 +11,73 @@ Recommended resources:
 
 Note: The environment does not support the newer Hopper nor Blackwell GPU models (H100/H200/B100/B200)
 
-Create and activate environment with:<br>
-`conda env create -f environment.yaml`<br>
+1. Pull repo via:<br>
+`git clone https://github.com/odobon1/vlm-tutorial.git`
+2. Navigate to repo:<br>
+`cd vlm-tutorial`
+3. Create env:<br>
+`conda env create -f environment.yml`
+4. Activate env:<br>
 `conda activate imagenet-zeroshot`
 
+#### Setup stuff
 
+The recommended user setup is to have this document and the jupyter notebook open side by side.
+
+It is recommended to complete the setup steps above, run the notebook, and then proceed to read through the remainder of this tutorial as the notebook is running (it takes about an hour to run (need final time reading for this)).
+
+## Intro
+
+#### Hook
+
+Vision-Language Models (VLMs) went mainstream in early 2021 with Radford et al.'s introduction of Contrastive Language-Image Pretraining (CLIP) [1], setting a new bar for zero-shot recognition.
+This breakthrough sparked a wave of research on cross-modal contrastive pretraining, yielding a family of models with many impressive capabilities such as predicting classes without any task-specific training.
+In this tutorial, we demystify that capability: we'll walk through synthesizing class prototypes from natural language prompts via the VLM's text encoder, scoring images by cosine similarity, and improving performance via templating and prompt ensembling.
+
+#### Explaining VLMs
+
+VLMs are known for their robustness to distribution shift and remarkable zero-shot learning capabilities.
+
+At a high level, a VLM consists of an image encoder and a text encoder (colloquially, the vision and text towers), which are jointly pretrained with a contrastive loss on a large number of image-text pairs scraped from the web to produce a shared embedding space that groups/separates similar/dissimilar concepts. By leveraging natural language supervision, VLMs learn semantically rich representations that capture fine-grained relationships between images and text, unlocking reliable zero-shot transfer competitive with fully supervised baselines. In other words, given a new dataset, VLMs generalize to the never-before-seen classes without any additional training and outperform previously state-of-the-art (SOTA) fully supervised models trained specifically for that task. That's **zero-shot learning**: predicting classes the model was never trained on. Natural language class labels are processed by the text encoder to synthesize a task-specific classifier on the fly.
+
+Text transformers are used for the text encoder.
+
+Vision Transformers (ViTs) are commonly used for the vision encoder, although there are ResNet-based variants as well.
+
+#### What we'll be doing in this tutorial
+
+In this tutorial, we will be covering the basics of applying VLMs to image classification tasks, guiding our discussion and comparison of classical and VLM paradigms with the reproduction of results from the seminal CLIP [1] and SigLIP [2] papers, with a particular focus on the headliner results from the CLIP paper abstract: CLIP zero-shot outperforming ResNet-50 on ImageNet1k, which ResNet-50 was specifically trained on. We will be following the convention used in the CLIP paper and use *CLIP* to refer to the ViT-L/14 (336px) variant unlessed otherwise specified.
+
+We will benchmark ResNet-50 and various VLMs of interest on the validation set of ImageNet1k.
+
+In this tutorial we use a VLM for zero-shot classification, one of their most impressive capabilities.
+
+We will be evaluating and comparing VLMs and ResNet-50 [3] on the ImageNet1k [4] validation set. Note that unlike ResNet, which was trained on ImageNet1k, the VLMs weren't exposed to the ImageNet1k train data nor trained to explicitly recognize the 1000 discrete classes. In other words, we will be evaluating the zero-shot performance of the VLMs, baselining against a previously SOTA model that was explicitly trained for the task to reproduce the results from the CLIP paper abstract.
+
+We will be utilizing the PACE community copy of the ImageNet1k validation set located at `/storage/ice1/shared/d-pace_community/makerspace-datasets/`.
+
+In this tutorial, we have two targets:<br>
+**Primary target**: reproducing the headliner results from the CLIP abstract, the flagship CLIP ViT-L/14 (336px) model outperforming ResNet-50 on ImageNet1k without having seen any of the data.<br>
+**Secondary target**: reproduce results of different variants reported on in the seminal works that are also available through the `open_clip` library, just for good measure.
+
+Below are Prec@1 results reported on in the seminal CLIP and SigLIP papers for 1 ResNet-based and 7 ViT-based VLMs, which we will be reproducing as per our secondary target.
+
+| Model                   | Reported <br> (Seminal CLIP) | Reported <br> (Seminal SigLIP) |
+|-------------------------|------------------------------|--------------------------------|
+| CLIP ResNet-50 (224px)  | 59.6                         | --                             |
+| CLIP ViT-B/32 (224px)   | 63.2                         | --                             |
+| CLIP ViT-B/16 (224px)   | 68.6                         | 68.3                           |
+| CLIP ViT-L/14 (224px)   | 75.3                         | 75.5                           |
+| CLIP ViT-L/14 (336px)   | 76.2                         | 76.6                           |
+| SigLIP ViT-B/16 (224px) | --                           | 76.3                           |
+| SigLIP ViT-B/16 (256px) | --                           | 76.6                           |
+| SigLIP ViT-L/16 (256px) | --                           | 80.6                           |
+
+The results in the table above are pulled from Table X of [1] and Table X of [2].
+
+Notice how the 3 overlapping results for the same models slightly vary between papers. There are a number of things we could attribute this drift to, but the moral of the story is: it happens.
+
+Note: CLIP ResNet-50 shouldn't be confused with the standalone ResNet-50. "ResNet-50" will be used to refer to standalone ResNet-50 and "CLIP ResNet-50" will be used to refer to the VLM that uses ResNet-50 as the vision tower.
 
 We make use of the following conventions for discussing tensor dimensionality:
 * B: Batch dimension i.e. sample dimension (number of samples per mini-batch)
@@ -32,87 +89,11 @@ We make use of the following conventions for discussing tensor dimensionality:
 * H: Image height
 * W: Image width
 
-
-
-
-LVMs broke out onto the scene in early/late 20xx with Radford et al.'s introduction of Contrastive Language-Image Pretraining...
-
-The core components of VLMs are the language and vision encoders.
-or
-VLMs consist of an image encoder and a text encoder.
-
-
-
-In this tutorial, we will be covering the basics of applying VLMs to image classification tasks, guiding the discussion with the reproduction of results from the seminal CLIP and SigLIP papers ([1], [2]).
-
-We will reproduce results from the seminal CLIP and SigLIP papers to guide our discussion and comparison of classical and VLM paradigms. (Make sure this is a correct usage of the term "paradigms")
-
-
-We will reproduce results from the seminal CLIP and SigLIP papers [1], [2], using the VLMs in image-to-text mode to compare head-to-head with classic single-label classification models, benchmarking ResNet-50 and various VLMs of interest on the validation set of ImageNet1k.
-
-
-In this tutorial we use a VLM for zero-shot classification, one of their most impressive capabilities.
-
-
-CLIP and related VLMs are known for their amazing ability to generalize to classes that they have not been trained on, known as zero-shot learning. In this tutorial, we will be walking through how to set up CLIP-style VLMs to do just that.
-
-In this tutorial, we will be covering zero-shot image-to-text inference, but it is good to know that CLIP has many use cases including image-to-image and text-to-image retrieval.
-
-
-We will be evaluating and comparing VLMs and ResNet-50 [3] on the ImageNet1k [4] validation set. Note that unlike ResNet, which was trained on ImageNet1k, the VLMs weren't exposed to the ImageNet1k train data nor trained to explicitly recognize the 1000 discrete classes. In other words, we will be evaluating the zero-shot performance of the VLMs, baselining against a previously SOTA model that was explicitly trained for the task.
-
-(Make sure to emphasize the fact that zero-shot == the model hasn't been trained on any of the data)
-
-
-This tutorial covers using VLMs to perform zero-shot image classification as well as prompt ensembling to improve performance.
-
-The recommended user setup is to have this document and the jupyter notebook open side by side.
-
-It is recommended to complete the setup steps above, run the notebook, and then proceed to read through the remainder of this tutorial as the notebook is running (it takes about an hour to run (need final time reading for this)).
-
-
-OpenAI's CLIP was pretrained on a  set of 400M(?) image-text pairs scraped off the internet.
-During pretraining, B image-text pairs are sampled at a time and run through corresponding encoders to produce B text embeddings and B image embeddings. The logits are then computed to assemble a B x B similarity matrix. Along the diagonal (i = j) are the "aligned pairs" ~ the image-text pairs which were scraped from the web. All other elements are non-aligned pairs, where the image and text embeddings of non-corresponding pairs are compared. This is where the "contrastive" component of the name comes from: The majority of image-text pairs per batch are negatives ~ each B x B similarity matrix contains B positives and B^2 - B negatives under the standard pretraining assumption (that only aligned pairs are positives).
-VLMs are pretrained to push together aligned image-text pairs and push away non-aligned image-text pairs.
-
-
-
-
-
-
-
-| Model                   | Reported ~ CLIP | Reported ~ SigLIP |
-|-------------------------|-----------------|-------------------|
-| CLIP ResNet-50 (224px)  | 59.6            | --                |
-| CLIP ViT-B/32 (224px)   | 63.2            | --                |
-| CLIP ViT-B/16 (224px)   | 68.6            | 68.3              |
-| CLIP ViT-L/14 (224px)   | 75.3            | 75.5              |
-| CLIP ViT-L/14 (336px)   | 76.2            | 76.6              |
-| SigLIP ViT-B/16 (224px) | --              | 76.3              |
-| SigLIP ViT-B/16 (256px) | --              | 76.6              |
-| SigLIP ViT-L/16 (256px) | --              | 80.6              |
-
-
-
-The headliner CLIP results involve a method of feature engineering described in <link>
-
-The CLIP authors describe polysemy issues with the default ImageNet1k labels e.g. "crane" (bird vs. machine), so they curate class labels (one per class) and a set of templates to create a robust set of class prototype text embeddings.
-
-
-
-The PACE community maintains a great collection of commonly used benchmark datasets in `/storage/ice1/shared/d-pace_community/makerspace-datasets/`, we will be using ImageNet xxx ... (reference messages w/ Ron)
-
-in this tutorial we will be utilizing the ImageNet1k that is publicly available to PACE members
-
-
-
 ## Evaluation Utilities
 
 ### Imports
 
 ![](images/code_Page_01.png)
-
-
 
 ### Hardware Config
 
@@ -128,6 +109,10 @@ A batch of images is run through ResNet-50 to produce logits. Business as usual.
 ![](images/code_Page_03.png)
 
 ### Batched Inference: VLM
+
+OpenAI's CLIP was pretrained on a  set of 400M(?) image-text pairs scraped off the internet.
+During pretraining, B image-text pairs are sampled at a time and run through corresponding encoders to produce B text embeddings and B image embeddings. The logits are then computed to assemble a B x B similarity matrix. Along the diagonal (i = j) are the "aligned pairs" ~ the image-text pairs which were scraped from the web. All other elements are non-aligned pairs, where the image and text embeddings of non-corresponding pairs are compared. This is where the "contrastive" component of the name comes from: The majority of image-text pairs per batch are negatives ~ each B x B similarity matrix contains B positives and B^2 - B negatives under the standard pretraining assumption (that only aligned pairs are positives).
+VLMs are pretrained to push together aligned image-text pairs and push away non-aligned image-text pairs.
 
 A learnable temperature parameter is used to scale logits during training to adjust the sharpness of xyz, and in the case of SigLIP, a learnable bias applied to xyz.
 The raw logits are all we need for inference. During training, logits are scaled with a learnable temperature parameter to adjust the sharpness of xyz and in the case of SigLIP a learnable bias applied to xyz. However, like with softmax and sigmoid activations, these are strictly monotonic functions (ordering of logits is preserved) and are omitted to remain focused on inference for the purposes of this tutorial.
@@ -149,7 +134,7 @@ If you stop and take a second to think about what is being done here, the operat
 in a way, the matrix of encoded text embeddings is essentially a matrix that encodes the meaning of each text prompt. Each row of matrix G is an embedding corresponding to a class descriptor prompt
 The matrix G acts as a function/operator on image query vector q_hat
 
-If you stop to think about it, what we did here very much resembles the operation performed by a fully connected linear layer, it is a dot product after all. The matrix G acts as an operator on the query embedding vector q_hat the very same way as the matrix of weights W of a fully connected layer acts as an operator on a vector of activations a_hat corresponding to a particular sample. The image embedding is analogous to the vector of activations entering the last task-specific fully connected classification layer, the matrix G of cached text embeddings encoding each class analogous to the last fully connected task-specific classification layer composed of weight matrix W with the individual text embeddings corresponding to particular classes analogous to the weights connecting every input activation to particular output logits. In both cases (VLM vs. classic?), the class corresponding to the maximum logit is considered the prediction.
+If you stop to think about it, what we did here very much resembles the operation performed by a fully connected linear layer, it is a dot product after all. The matrix G acts as an operator on the query embedding vector q_hat the very same way as the matrix of weights W of a fully connected layer acts as an operator on a vector of activations a_hat corresponding to a particular sample. The image embedding is analogous to the vector of activations entering the last task-specific fully connected classification layer, the matrix G of cached text embeddings encoding each class analogous to the last fully connected task-specific classification layer composed of weight matrix W with the individual text embeddings corresponding to particular classes analogous to the weights connecting every input activation to particular output logits. In both cases (VLM vs. classic), the class corresponding to the maximum logit is considered the prediction.
 
 the only difference is the pretraining process fuses together the latent space across modalities in such a way where the image embedding and corresponding text embedding of the natural language description of the image point in very similar directions.
 
@@ -241,6 +226,8 @@ Interested readers can learn more about some of the more prominent open-source p
 
 ### Zero-Shot Classification: Raw Labels
 
+The CLIP authors describe polysemy issues with the default ImageNet1k labels e.g. "crane" (bird vs. machine), so they curate class labels (one per class) and a set of templates to create a robust set of class prototype text embeddings.
+
 ![](images/code_Page_10.png)
 
 `img_pp` is the validation image preprocessor which applies transforms to images such that they are in the format expected by the vision encoder.
@@ -314,6 +301,10 @@ Potential columns to add to the above: pretrain dataset (nah), QuickGeLU (nah), 
 ![](images/code_Page_13.png)
 
 ### Zero-Shot Classification: OpenAI ImageNet1k Templates
+
+The headliner CLIP results involve a method of feature engineering described in <link>
+
+
 
 ![](images/code_Page_14.png)
 
@@ -398,3 +389,7 @@ VLMs perform retrieval, which is normally many-to-many. To get the VLMs behaving
 ...in the image-to-text direction during zero-shot evaluation where the VLM is being utilized in such a way that mimics traditional image classification
 
 Reasoning about how training is performed for CLIP and SigLIP is left as an exercise to the reader (hint: <link>[1], ctrl-f "3.1.1 bidirectional training procedure")
+
+
+## Code Annotations Sneak-Peak
+![](images/code_Page_15.png)

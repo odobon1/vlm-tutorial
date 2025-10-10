@@ -111,7 +111,7 @@ Note the evaluation loop is exactly the same for both paradigms except for how l
 
 The `batch_prec1()` function takes a batch of logits and corresponding binary targets and computes mean Prec@1.
 
-![](images/code_Page_05.png)
+![](images/code_Page_03.png)
 
 
 Because we are only running the VLMs in inference mode, we don't need to run the logits through the activation layers (sigmoid/softmax) or apply the temperature scaling or bias in the case of SigLIP. That is,
@@ -135,7 +135,7 @@ In the classic paradigm, models are structured in such a way that they directly 
 
 In the classic paradigm, shown below, a batch of images is simply run through ResNet-50 to produce logits. Business as usual.
 
-![](images/code_Page_03.png)
+![](images/code_Page_04.png)
 
 ### ResNet-50 Evaluation
 
@@ -148,7 +148,7 @@ talk about activation functions not being necessary in ResNet function annotatio
 
 Note: we are using ResNet-50 v1 here. A better performing version of ResNet exists, but we will be using the original version as described in the seminal CLIP paper's abstract [1].
 
-![](images/code_Page_06.png)
+![](images/code_Page_05.png)
 
 ## VLMs
 
@@ -170,7 +170,7 @@ Before discussing performing batched inference with VLMs, we will cover the cons
 
 ...an L x D matrix G where L is the number of classes (1000 in our case) and D is the embedding dimensionality.
 
-![](images/code_Page_07.png)
+![](images/code_Page_06.png)
 
 ### Batched Inference: VLM
 
@@ -180,7 +180,7 @@ Class prototype text embeddings are representations of classes across which simi
 
 Image embeddings corresponding to the mini-batch of images are produced with the image encoder. These image embeddings are then normalized to unit length and the cosine similarity computed between every pair of normalized image and text embeddings to produce the logits.
 
-![](images/code_Page_04.png)
+![](images/code_Page_07.png)
 
 Brief explanation on intuition of cosine similarity here.
 
